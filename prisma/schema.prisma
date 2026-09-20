@@ -1,0 +1,23 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/transapp_optimized/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model GeneratedAudio {
+  id          String   @id @default(cuid())
+  projectName String
+  voice       String
+  subtitleCount Int
+  durationMs  Int
+  audioUrl    String
+  srtContent  String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
