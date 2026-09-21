@@ -1,6 +1,6 @@
 {
-  "name": "SavoirIA TransApp",
-  "description": "Application de doublage audio et synchronisation temporelle de cours d'informatique. Conçu et développé par Ghislain Muntu.",
+  "name": "TransApp — Studio de Doublage SRT",
+  "description": "Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel, prêt pour Filmora.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
