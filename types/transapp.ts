@@ -7,6 +7,10 @@ export interface SubtitleItem {
   endTimeMs: number;
   enText: string;
   frText: string;
+  audioUrl?: string;
+  audioDurationMs?: number;
+  audioStatus?: 'idle' | 'generating' | 'ready' | 'error';
+  audioError?: string;
 }
 
 export interface TranslationProgress {
@@ -17,13 +21,44 @@ export interface TranslationProgress {
 }
 
 export interface GenerationProgress {
-  type: 'progress' | 'complete' | 'error' | 'heartbeat';
+  type: 'progress' | 'complete' | 'error' | 'heartbeat' | 'clip_generated';
   step?: 'tts' | 'assembly' | 'processing';
   current?: number;
   total?: number;
   message?: string;
   audioUrl?: string;
   durationMs?: number;
+  clip?: {
+    index: number;
+    url: string;
+    durationMs: number;
+  };
+  clips?: Array<{
+    index: number;
+    url: string;
+    durationMs: number;
+  }>;
+}
+
+export interface ClonedVoiceProfile {
+  id: string;
+  name: string;
+  gender: 'Femme' | 'Homme';
+  isCloned: boolean;
+  model: 'vibevoice';
+  referenceAudioUrl: string;
+  referenceDurationSec: number;
+  pitchScale: number;
+  tempoScale: number;
+  baseVoice: string;
+  acousticFeatures: {
+    estimatedPitchHz: number;
+    brightness: string;
+    timbreStyle: string;
+    energy: string;
+  };
+  samplePreviewUrl?: string;
+  createdAt: string;
 }
 
 export type VoiceOption = {
@@ -34,6 +69,8 @@ export type VoiceOption = {
   description?: string;
   tag?: string;
   previewText?: string;
+  isCloned?: boolean;
+  cloneProfile?: ClonedVoiceProfile;
 };
 
 export const FRENCH_VOICES: VoiceOption[] = [
@@ -85,3 +122,11 @@ export const FRENCH_VOICES: VoiceOption[] = [
 ];
 
 export type AppStep = 1 | 2 | 3 | 4 | 5;
+
+export interface YouTubeVideoInfo {
+  videoId: string;
+  title: string;
+  author: string;
+  thumbnail: string;
+  url: string;
+}

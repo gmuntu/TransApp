@@ -20,7 +20,11 @@ async function translateBatch(texts: string[]): Promise<string[]> {
         headers: { 'User-Agent': 'Mozilla/5.0' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const rawText = await res.text();
+      if (rawText.trim().startsWith('<')) {
+        throw new Error('Google Translate returned HTML instead of JSON');
+      }
+      const data = JSON.parse(rawText);
       const translated = (data?.[0] ?? [])
         .map((seg: any) => seg?.[0] ?? '')
         .join('');

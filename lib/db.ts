@@ -10,6 +10,7 @@ export interface GeneratedAudioRecord {
   audioUrl: string;
   srtContent: string | null;
   createdAt: Date;
+  firstSubtitleTimeMs?: number;
 }
 
 const audioDir = path.join(process.cwd(), 'public', 'audio');
@@ -32,27 +33,27 @@ function loadRecords(): GeneratedAudioRecord[] {
       }));
     }
 
-    // Also scan filesystem for any .wav files that might not be in records.json yet
-    if (fs.existsSync(audioDir)) {
-      const files = fs.readdirSync(audioDir).filter((f) => f.endsWith('.wav'));
-      for (const file of files) {
-        const url = `/audio/${file}`;
-        const alreadyExists = records.some((r) => r.audioUrl === url);
-        if (!alreadyExists) {
-          const stats = fs.statSync(path.join(audioDir, file));
-          records.push({
-            id: `audio_file_${file.replace(/[^a-zA-Z0-9]/g, '_')}`,
-            projectName: file.replace('.wav', '').replace(/master_\d+_?/, '') || 'Projet SRT',
-            voice: 'fr-FR-DeniseNeural',
-            subtitleCount: 1,
-            durationMs: Math.round((stats.size / 176400) * 1000), // 44.1kHz * 16bit stereo = 176,400 bytes/sec
-            audioUrl: url,
-            srtContent: null,
-            createdAt: stats.mtime,
-          });
-        }
+    // Deduplicate records by canonical base audio name
+    const deduplicated: GeneratedAudioRecord[] = [];
+    const seenBaseNames = new Set<string>();
+
+    // Prioritize records that have richer metadata (higher subtitle count or srtContent)
+    records.sort((a, b) => {
+      const countA = a.subtitleCount || 0;
+      const countB = b.subtitleCount || 0;
+      if (countB !== countA) return countB - countA;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    for (const r of records) {
+      const cleanUrl = (r.audioUrl || '').split('?')[0];
+      const baseName = cleanUrl ? path.basename(cleanUrl).replace(/\.(wav|mp3)$/i, '') : r.id;
+      if (baseName && !seenBaseNames.has(baseName)) {
+        seenBaseNames.add(baseName);
+        deduplicated.push(r);
       }
     }
+    records = deduplicated;
 
     // Sort newest first
     records.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -97,7 +98,12 @@ const mockGeneratedAudio = {
   },
   findUnique: async (args?: { where: { id: string } }) => {
     inMemoryAudioStore = loadRecords();
-    return inMemoryAudioStore.find((r) => r.id === args?.where?.id) ?? null;
+    const targetId = args?.where?.id;
+    return (
+      inMemoryAudioStore.find(
+        (r) => r.id === targetId || r.audioUrl === targetId || (targetId && r.audioUrl?.includes(targetId))
+      ) ?? null
+    );
   },
   create: async (args: { data: Omit<GeneratedAudioRecord, 'id' | 'createdAt'> }) => {
     inMemoryAudioStore = loadRecords();
@@ -112,7 +118,10 @@ const mockGeneratedAudio = {
   },
   update: async (args: { where: { id: string }; data: Partial<GeneratedAudioRecord> }) => {
     inMemoryAudioStore = loadRecords();
-    const idx = inMemoryAudioStore.findIndex((r) => r.id === args.where.id);
+    const targetId = args.where.id;
+    const idx = inMemoryAudioStore.findIndex(
+      (r) => r.id === targetId || r.audioUrl === targetId || (targetId && r.audioUrl?.includes(targetId))
+    );
     if (idx !== -1) {
       inMemoryAudioStore[idx] = { ...inMemoryAudioStore[idx], ...args.data };
       saveRecords(inMemoryAudioStore);
@@ -122,13 +131,71 @@ const mockGeneratedAudio = {
   },
   delete: async (args: { where: { id: string } }) => {
     inMemoryAudioStore = loadRecords();
-    const idx = inMemoryAudioStore.findIndex((r) => r.id === args.where.id);
-    if (idx !== -1) {
-      const removed = inMemoryAudioStore.splice(idx, 1)[0];
+    const targetId = args.where.id;
+    const targetRecord = inMemoryAudioStore.find((r) => r.id === targetId || r.audioUrl === targetId);
+
+    if (targetRecord) {
+      const cleanUrl = (targetRecord.audioUrl || '').split('?')[0];
+      const baseName = cleanUrl ? path.basename(cleanUrl).replace(/\.(wav|mp3)$/i, '') : null;
+
+      // Remove any record matching id or audioUrl or baseName
+      inMemoryAudioStore = inMemoryAudioStore.filter((r) => {
+        if (r.id === targetId || r.audioUrl === targetId) return false;
+        if (baseName && r.audioUrl) {
+          const rBase = path.basename(r.audioUrl.split('?')[0]).replace(/\.(wav|mp3)$/i, '');
+          if (rBase === baseName) return false;
+        }
+        return true;
+      });
       saveRecords(inMemoryAudioStore);
-      return removed;
+
+      // Clean up both .wav and .mp3 physical files on disk
+      if (baseName) {
+        const candidates = [
+          path.join(audioDir, `${baseName}.wav`),
+          path.join(audioDir, `${baseName}.mp3`),
+        ];
+        for (const p of candidates) {
+          if (fs.existsSync(p)) {
+            try {
+              fs.unlinkSync(p);
+            } catch (fErr) {
+              console.warn('Could not delete audio file from disk:', p, fErr);
+            }
+          }
+        }
+      }
+
+      return targetRecord;
     }
     return null;
+  },
+  deleteMany: async (args?: { where?: any }) => {
+    inMemoryAudioStore = loadRecords();
+    const count = inMemoryAudioStore.length;
+
+    // Delete all master .wav and .mp3 files on disk
+    if (fs.existsSync(audioDir)) {
+      try {
+        const files = fs.readdirSync(audioDir);
+        for (const file of files) {
+          if (file === 'records.json' || file === 'cache') continue;
+          if (file.endsWith('.wav') || file.endsWith('.mp3')) {
+            try {
+              fs.unlinkSync(path.join(audioDir, file));
+            } catch {
+              /* noop */
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not clean audio directory:', err);
+      }
+    }
+
+    inMemoryAudioStore = [];
+    saveRecords(inMemoryAudioStore);
+    return { count };
   },
 };
 

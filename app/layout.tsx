@@ -14,14 +14,16 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mon
 
 export const metadata: Metadata = {
   title: 'TransApp — Studio de Doublage SRT',
-  description: 'Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel, prêt pour Filmora.',
+  description: 'Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel, prêt pour Filmora. Créé par Ghslain Muntu.',
+  authors: [{ name: 'Ghslain Muntu' }],
+  creator: 'Ghslain Muntu',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
   },
   openGraph: {
     title: 'TransApp — Studio de Doublage SRT',
-    description: 'Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel.',
+    description: 'Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel. Créé par Ghslain Muntu.',
     images: ['/og-image.png'],
   },
 }

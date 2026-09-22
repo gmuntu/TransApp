@@ -1,6 +1,6 @@
 {
   "name": "TransApp — Studio de Doublage SRT",
-  "description": "Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel, prêt pour Filmora.",
+  "description": "Traduisez vos sous-titres anglais en français et générez un audio doublé professionnel, prêt pour Filmora. Créé par Ghslain Muntu.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

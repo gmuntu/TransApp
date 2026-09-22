@@ -20,7 +20,11 @@ async function translateFallback(texts: string[]): Promise<string[]> {
       const url = `https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=en&tl=fr&dt=t&q=${encodeURIComponent(text)}`;
       const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const rawText = await res.text();
+      if (rawText.trim().startsWith('<')) {
+        throw new Error('HTML response from translate');
+      }
+      const data = JSON.parse(rawText);
       const translated = (data?.[0] ?? [])
         .map((seg: any) => seg?.[0] ?? '')
         .join('');
@@ -69,7 +73,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication.`;
       let parsedSuccessfully = false;
 
       if (geminiKey) {
-        const candidateModels = ['gemini-2.5-flash-lite', 'gemini-flash-latest'];
+        const candidateModels = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
         for (const model of candidateModels) {
           try {
             const ai = new GoogleGenAI({ apiKey: geminiKey });
